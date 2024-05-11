@@ -92,6 +92,14 @@ def replace_MR_with_M_then_R(circuit: stim.Circuit) -> stim.Circuit:
     return new_circuit
 
 
+def prepend_qubit_coords_for_repetition_code(circuit: stim.Circuit) -> stim.Circuit:
+    new_circuit = stim.Circuit()
+    for i in range(circuit.num_qubits):
+        new_circuit.append(stim.CircuitInstruction("QUBIT_COORDS", [i], [i]))
+    new_circuit += circuit
+    return new_circuit
+
+
 def load_extra_test_cases() -> list[tuple[str, stim.Circuit]]:
     cases = []
     circuits_dir = pathlib.Path(__file__).parent / "extra_test_circuits"
@@ -105,13 +113,14 @@ def load_extra_test_cases() -> list[tuple[str, stim.Circuit]]:
 def gen_test_cases() -> list[tuple[str, stim.Circuit]]:
     cases = []
     code_tasks = [
+        # "repetition_code:memory",  # NOT WORKING FOR ROUNDS=1 or 2
         "surface_code:rotated_memory_x",
         "surface_code:rotated_memory_z",
         "surface_code:unrotated_memory_x",
         "surface_code:unrotated_memory_z",
     ]
     for code_task, distance, rounds, decompose_MR in itertools.product(
-        code_tasks, (3,), (1, 2, 3, 5, 13), (True, False)
+        code_tasks, (3, 5), (1, 2, 3, 11, 15), (True, False)
     ):
         circuit_id = f"{code_task}:d{distance}:r{rounds}:decomposeMR={decompose_MR}"
         circuit = reorder_detectors_for_equality_check(
@@ -125,12 +134,14 @@ def gen_test_cases() -> list[tuple[str, stim.Circuit]]:
                 before_measure_flip_probability=0.01,
             )
         )
+        if code_task.startswith("repetition_code"):
+            circuit = prepend_qubit_coords_for_repetition_code(circuit)
         if decompose_MR:
             circuit = replace_MR_with_M_then_R(circuit)
         cases.append((circuit_id, circuit))
 
     extra_cases = load_extra_test_cases()
-    # return cases + extra_cases
+    # return cases
     return extra_cases
 
 
@@ -148,3 +159,5 @@ def test_annotate_detectors_automatically(circuit_id: str, circuit: stim.Circuit
     dem1 = circuit.flattened().detector_error_model()
     dem2 = circuit_automatic_detectors.flattened().detector_error_model()
     assert dem1.approx_equals(dem2, atol=1e-6)
+
+

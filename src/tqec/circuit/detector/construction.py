@@ -171,8 +171,11 @@ def _compile_atomic_fragment_into_circuit(
         )
         fragment_circuit_with_detectors.append(detector_inst)
     if matched_detectors:
+        coords_dim = max(len(d.coords) for d in matched_detectors)
         fragment_circuit_with_detectors.append(
-            stim.CircuitInstruction("SHIFT_COORDS", [], [0.0, 0.0, 1.0])
+            stim.CircuitInstruction(
+                "SHIFT_COORDS", [], [0.0] * (coords_dim - 1) + [1.0]
+            )
         )
     out_circuit += fragment_circuit_with_detectors
     # construct end stabilizers and update state
@@ -312,7 +315,7 @@ def match_boundary_stabilizers(
         match_by_disjoint_cover(
             commute_es, commute_bs, measurements_offset, matched_detectors
         )
-    # 3. start combining anti-commuting stabilizers
+    # 3. combine anti-commuting stabilizers
     if not ((commute_bs or anticommute_bs) and (commute_es or anticommute_es)):
         return matched_detectors
     # TODO: COMBINE ANTI-COMMUTING STABILIZERS
